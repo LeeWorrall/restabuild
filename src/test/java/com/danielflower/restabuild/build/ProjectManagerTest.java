@@ -27,7 +27,7 @@ public class ProjectManagerTest {
         StringBuilderWriter buildLog = new StringBuilderWriter();
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
 
-        ProjectManager.ExtendedBuildState extendedBuildState = runner.build(buildLog, "master", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null);
+        ProjectManager.ExtendedBuildState extendedBuildState = runner.build(buildLog, "master", executeWatchdog(), null);
         assertThat(buildLog.toString(), extendedBuildState.buildState, is(BuildState.SUCCESS));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
         assertThat(extendedBuildState.tagsAdded, contains("my-maven-app-1.0.0"));
@@ -35,7 +35,7 @@ public class ProjectManagerTest {
         breakTheProject(appRepo, "master");
 
         StringBuilderWriter badBuildLog = new StringBuilderWriter();
-        BuildState result2 = runner.build(badBuildLog, "master", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        BuildState result2 = runner.build(badBuildLog, "master", executeWatchdog(), null).buildState;
         assertThat(buildLog.toString(), result2, is(BuildState.FAILURE));
         assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
 
@@ -50,7 +50,7 @@ public class ProjectManagerTest {
 
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
 
-        ProjectManager.ExtendedBuildState extendedBuildState = runner.build(buildLog, "master", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null);
+        ProjectManager.ExtendedBuildState extendedBuildState = runner.build(buildLog, "master", executeWatchdog(), null);
 
         String log = buildLog.toString();
         assertThat(log, extendedBuildState.buildState, is(BuildState.SUCCESS));
@@ -67,14 +67,14 @@ public class ProjectManagerTest {
         StringBuilderWriter buildLog = new StringBuilderWriter();
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
 
-        BuildState result = runner.build(buildLog, "branch-1", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        BuildState result = runner.build(buildLog, "branch-1", executeWatchdog(), null).buildState;
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
 
         breakTheProject(appRepo, "branch-1");
 
         StringBuilderWriter badBuildLog = new StringBuilderWriter();
-        BuildState result2 = runner.build(badBuildLog, "branch-1", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        BuildState result2 = runner.build(badBuildLog, "branch-1", executeWatchdog(), null).buildState;
         assertThat(buildLog.toString(), result2, is(BuildState.FAILURE));
         assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
 
@@ -86,28 +86,28 @@ public class ProjectManagerTest {
         StringBuilderWriter buildLog = new StringBuilderWriter();
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
 
-        BuildState result = runner.build(buildLog, "master", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        BuildState result = runner.build(buildLog, "master", executeWatchdog(), null).buildState;
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
 
 
         StringBuilderWriter buildLogBranch1 = new StringBuilderWriter();
-        result = runner.build(buildLogBranch1, "branch-1", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        result = runner.build(buildLogBranch1, "branch-1", executeWatchdog(), null).buildState;
         assertThat(buildLogBranch1.toString(), result, is(BuildState.SUCCESS));
         assertThat(buildLogBranch1.toString(), containsString("BUILD SUCCESS"));
 
         breakTheProject(appRepo, "branch-1");
 
         StringBuilderWriter buildLogMasterAgain = new StringBuilderWriter();
-        BuildState result2 = runner.build(buildLogMasterAgain, "master", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        BuildState result2 = runner.build(buildLogMasterAgain, "master", executeWatchdog(), null).buildState;
         assertThat(buildLogMasterAgain.toString(), result2, is(BuildState.SUCCESS));
-        assertThat(buildLogMasterAgain.toString(),  containsString("BUILD SUCCESS"));
+        assertThat(buildLogMasterAgain.toString(), containsString("BUILD SUCCESS"));
 
 
         StringBuilderWriter buildLogBranch1Again = new StringBuilderWriter();
-        BuildState branch1AgainResult = runner.build(buildLogBranch1Again, "branch-1", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null).buildState;
+        BuildState branch1AgainResult = runner.build(buildLogBranch1Again, "branch-1", executeWatchdog(), null).buildState;
         assertThat(buildLogBranch1Again.toString(), branch1AgainResult, is(BuildState.FAILURE));
-        assertThat(buildLogBranch1Again.toString(),  containsString("The build could not read 1 project"));
+        assertThat(buildLogBranch1Again.toString(), containsString("The build could not read 1 project"));
     }
 
     @Test
@@ -116,7 +116,7 @@ public class ProjectManagerTest {
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
 
         try {
-            runner.build(buildLog, "a-non-exist-branch", new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30)), null);
+            runner.build(buildLog, "a-non-exist-branch", executeWatchdog(), null);
             fail("It should throw exception when switching a non-exist-branch.");
         } catch (RuntimeException e) {
             assertThat(e.getMessage(), containsString("Failed to switch to branch a-non-exist-branch"));
@@ -124,12 +124,16 @@ public class ProjectManagerTest {
 
     }
 
+    private static ExecuteWatchdog executeWatchdog() {
+        return new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30));
+    }
+
     @Test
     public void canBuildProjectsWithParameter() throws Exception {
         StringBuilderWriter buildLog = new StringBuilderWriter();
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
 
-        BuildState result = runner.build(buildLog, "master", "Test Parameter").buildState;
+        BuildState result = runner.build(buildLog, "master", executeWatchdog(), "Test Parameter").buildState;
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
         assertThat(buildLog.toString(), containsString("build parameter: Test Parameter"));
     }
