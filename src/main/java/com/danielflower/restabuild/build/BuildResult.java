@@ -33,10 +33,12 @@ public class BuildResult {
     private String commitIDAfterBuild;
     private List<String> createdTags;
     private volatile ExecuteWatchdog executeWatchdog = null;
+    private String buildParam;
 
-    public BuildResult(FileSandbox sandbox, GitRepo gitRepo) {
+    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam) {
         this.sandbox = sandbox;
         this.gitRepo = gitRepo;
+        this.buildParam = buildParam;
         this.buildDir = sandbox.buildDir(id);
         buildLogFile = new File(buildDir, "build.log");
     }
@@ -68,6 +70,7 @@ public class BuildResult {
             .put("id", id)
             .put("gitUrl", gitRepo.url)
             .put("gitBranch", gitRepo.branch)
+            .put("buildParam", buildParam == null ? "" : buildParam)
             .put("status", state.name())
             .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
             .put("queueDurationMillis", queueDuration)
@@ -90,7 +93,7 @@ public class BuildResult {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
                 this.executeWatchdog = new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30));
-                extendedBuildState = pm.build(writer, gitRepo.branch, executeWatchdog);
+                extendedBuildState = pm.build(writer, gitRepo.branch, executeWatchdog, buildParam);
                 newState = extendedBuildState.buildState;
                 this.executeWatchdog = null;
             } catch (Exception ex) {

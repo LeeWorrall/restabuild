@@ -7,6 +7,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -100,7 +101,7 @@ public class ProjectManager {
         }
     }
 
-    public ExtendedBuildState build(Writer outputHandler, String branch, ExecuteWatchdog executeWatchdog) throws Exception {
+    public ExtendedBuildState build(Writer outputHandler, String branch, ExecuteWatchdog executeWatchdog, String buildParam) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
@@ -128,6 +129,9 @@ public class ProjectManager {
                 command = new CommandLine("bash")
                 .addArgument("-x")
                 .addArgument(f.getName());
+            }
+            if (StringUtils.isNoneBlank(buildParam)) {
+                command.addArguments(buildParam);
             }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
             this.executeWatchdog = executeWatchdog;
