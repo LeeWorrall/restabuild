@@ -21,14 +21,13 @@ public class ProcessStarter {
         this.outputHandler = outputHandler;
     }
 
-    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, long timeout) throws RestaBuildException, IOException {
+    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, ExecuteWatchdog executeWatchdog) throws RestaBuildException, IOException {
         long startTime = logStartInfo(command);
-        ExecuteWatchdog watchDog = new ExecuteWatchdog(timeout);
-        Executor executor = createExecutor(this.outputHandler, command, projectRoot, watchDog);
+        Executor executor = createExecutor(this.outputHandler, command, projectRoot, executeWatchdog);
         try {
             int exitValue = executor.execute(command, System.getenv());
             if (executor.isFailure(exitValue)) {
-                String message = watchDog.killedProcess()
+                String message = executeWatchdog.killedProcess()
                     ? "Timed out waiting for " + command
                     : "Exit code " + exitValue + " returned from " + command;
                 outputHandler.append(message);

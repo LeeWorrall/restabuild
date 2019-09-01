@@ -5,6 +5,7 @@ import com.jcraft.jsch.JSch;
 import io.muserver.Mutils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
@@ -22,7 +23,6 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
@@ -33,6 +33,7 @@ public class ProjectManager {
     }
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
     public static String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
+    private volatile ExecuteWatchdog executeWatchdog;
 
 
     static synchronized ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
@@ -99,7 +100,7 @@ public class ProjectManager {
         }
     }
 
-    public ExtendedBuildState build(Writer outputHandler, String branch) throws Exception {
+    public ExtendedBuildState build(Writer outputHandler, String branch, ExecuteWatchdog executeWatchdog) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
@@ -129,7 +130,9 @@ public class ProjectManager {
                 .addArgument(f.getName());
             }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
-            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
+            this.executeWatchdog = executeWatchdog;
+            result = processStarter.run(outputHandler, command, workDir, this.executeWatchdog);
+            this.executeWatchdog = null;
 
             headAfter = git.getRepository().exactRef("HEAD");
 

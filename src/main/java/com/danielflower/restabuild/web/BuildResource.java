@@ -1,10 +1,7 @@
 package com.danielflower.restabuild.web;
 
 import com.danielflower.restabuild.FileSandbox;
-import com.danielflower.restabuild.build.BuildDatabase;
-import com.danielflower.restabuild.build.BuildQueue;
-import com.danielflower.restabuild.build.BuildResult;
-import com.danielflower.restabuild.build.GitRepo;
+import com.danielflower.restabuild.build.*;
 import io.muserver.ContentTypes;
 import io.muserver.HeaderNames;
 import io.muserver.HeaderValues;
@@ -20,6 +17,8 @@ import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static java.util.Arrays.asList;
 
 @Path("api/v1/builds")
 @Description("Builds")
@@ -106,6 +105,28 @@ public class BuildResource {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
             return jsonForResult(uriInfo.getRequestUriBuilder(), br.get()).toString(4);
+        } else {
+            throw new NotFoundException();
+        }
+    }
+
+    @PUT
+    @Path("{id}/cancel")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Description("Cancels the build, if it is running")
+    @ApiResponse(code="200", message="Success")
+    @ApiResponse(code="400", message="The state is not QUEUED or IN_PROGRESS", contentType = "text/plain")
+    @ApiResponse(code="404", message="No build with that ID exists", contentType = "text/plain")
+    public String cancel(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
+                          String id, @Context UriInfo uriInfo) {
+        Optional<BuildResult> br = database.get(id);
+        if (br.isPresent()) {
+            BuildResult build = br.get();
+            if (!asList(BuildState.QUEUED, BuildState.IN_PROGRESS).contains(build.state())) {
+                throw new ClientErrorException("The state " + build.state() + " cannot be cancelled", 400);
+            }
+            buildQueue.cancel(build);
+            return jsonForResult(uriInfo.getRequestUriBuilder(), build).toString(4);
         } else {
             throw new NotFoundException();
         }

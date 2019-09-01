@@ -151,4 +151,22 @@ public class SystemTest {
 
     }
 
+    @Test
+    public void itIsPossibleToKillHungBuilds() throws Exception {
+        AppRepo appRepo = AppRepo.create("hung-build");
+        JSONObject build = new JSONObject(createBuild(appRepo).getContentAsString());
+        String url = build.getString("url");
+        System.out.println("url = " + url);
+        Thread.sleep(5000);
+
+        ContentResponse cancelResp = client.newRequest(url + "/cancel").method("PUT").send();
+        assertThat(cancelResp.getStatus(), is(200));
+
+        Thread.sleep(5000);
+
+        JSONObject buildResource = new JSONObject(client.GET(url).getContentAsString());
+        BuildState status = BuildState.valueOf(buildResource.getString("status"));
+        assertThat(status, equalTo(BuildState.CANCELLED));
+    }
+
 }

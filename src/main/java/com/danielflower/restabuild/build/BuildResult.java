@@ -2,6 +2,7 @@ package com.danielflower.restabuild.build;
 
 import com.danielflower.restabuild.FileSandbox;
 import io.muserver.Mutils;
+import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -13,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class BuildResult {
     private final Object lock = new Object();
@@ -30,6 +32,7 @@ public class BuildResult {
     private String commitIDBeforeBuild;
     private String commitIDAfterBuild;
     private List<String> createdTags;
+    private volatile ExecuteWatchdog executeWatchdog = null;
 
     public BuildResult(FileSandbox sandbox, GitRepo gitRepo) {
         this.sandbox = sandbox;
@@ -53,6 +56,10 @@ public class BuildResult {
             }
         }
         return FileUtils.readFileToString(buildLogFile, StandardCharsets.UTF_8);
+    }
+
+    public BuildState state() {
+        return this.state;
     }
 
     public JSONObject toJson() {
@@ -82,8 +89,10 @@ public class BuildResult {
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-                extendedBuildState = pm.build(writer, gitRepo.branch);
+                this.executeWatchdog = new ExecuteWatchdog(TimeUnit.MINUTES.toMillis(30));
+                extendedBuildState = pm.build(writer, gitRepo.branch, executeWatchdog);
                 newState = extendedBuildState.buildState;
+                this.executeWatchdog = null;
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());
                 ex.printStackTrace(new PrintWriter(writer));
@@ -111,6 +120,14 @@ public class BuildResult {
 
     public void stopListening(StringListener writer) {
         logListeners.remove(writer);
+    }
+
+    public void cancel() {
+        state = BuildState.CANCELLED;
+        ExecuteWatchdog watchdog = this.executeWatchdog;
+        if (watchdog != null) {
+            watchdog.stop();
+        }
     }
 
 

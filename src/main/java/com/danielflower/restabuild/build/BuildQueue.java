@@ -51,4 +51,8 @@ public class BuildQueue {
         executorService.awaitTermination(10, TimeUnit.MINUTES);
     }
 
+    public void cancel(BuildResult build) {
+        queue.remove(build); // if queued, this will remove it
+        build.cancel(); // if in progress, this will stop it
+    }
 }
